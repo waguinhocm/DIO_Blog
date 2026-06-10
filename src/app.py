@@ -2,6 +2,7 @@
 import click
 from datetime import datetime
 from flask import Flask, current_app
+from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import sqlalchemy as sa
@@ -15,11 +16,12 @@ class Base(DeclarativeBase):
 
 db = SQLAlchemy(model_class=Base)
 migrate = Migrate()
+jwt = JWTManager()
+
 
 class User(db.Model):
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
     username: Mapped[str] = mapped_column(sa.String, unique=True, nullable=False)
-
 
     def __repr__(self):
         return f"User(id={self.id!r}, username={self.username!r})"
@@ -48,6 +50,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='dev',
         SQLALCHEMY_DATABASE_URI='sqlite:///blog.sqlite',
+        JWT_SECRET_KEY="super-secret",
     )
 
     if test_config is None:
@@ -63,8 +66,11 @@ def create_app(test_config=None):
     app.cli.add_command(init_db_command)
     db.init_app(app)
     migrate.init_app(app, db)
+    jwt.init_app(app)
 
     from src.controllers import user
+    from src.controllers import auth
     app.register_blueprint(user.app)
+    app.register_blueprint(auth.app)
 
     return app
